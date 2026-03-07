@@ -1,16 +1,16 @@
 import './globals.css';
+import { siteConfig } from '../config'; // <-- Panggil config, perhatikan ../ karena ada di dalam folder app
 
-// Metadata ini berguna untuk judul di tab browser dan SEO dasar
+// Title dan Description sekarang otomatis ikut file config
 export const metadata = {
-  title: 'Sistem Redirect',
-  description: 'Smartlink dan Offer Redirect System',
+  title: siteConfig.siteName,
+  description: siteConfig.description,
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="id">
       <body>
-        {/* 'children' di sini akan otomatis diisi oleh isi dari page.js atau not-found.js */}
         {children}
       </body>
     </html>
