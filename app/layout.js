@@ -4,7 +4,6 @@ import { siteConfig } from '../config'; // <-- Panggil config, perhatikan ../ ka
 // Title dan Description sekarang otomatis ikut file config
 export const metadata = {
   title: siteConfig.siteName,
-  description: siteConfig.description,
 };
 
 export default function RootLayout({ children }) {
