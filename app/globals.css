@@ -1,0 +1,43 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #ffffff;
+  color: #111111;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+input, button, select {
+  font-family: inherit;
+  font-size: 1rem;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+/* Mengganti kotak input dengan garis bawah tipis saja */
+input {
+  border-bottom: 1px solid #e0e0e0;
+  padding: 8px 0;
+  width: 100%;
+  transition: border-color 0.2s ease;
+}
+
+input:focus {
+  border-bottom: 1px solid #111111;
+}
+
+button {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
