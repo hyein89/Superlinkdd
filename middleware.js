@@ -31,13 +31,14 @@ export async function middleware(req) {
     // ==========================================
     // 0. SISTEM ANTI-BOT & ANTI-SPY TOOL
     // ==========================================
+    
     const userAgent = req.headers.get('user-agent')?.toLowerCase() || '';
     const isBot = BOT_AGENTS.some(keyword => userAgent.includes(keyword));
 
     if (isBot) {
-      // Jika terdeteksi sebagai Bot/SpyTool, langsung tendang ke 404 secara diam-diam
-      // Ini mencegah FB/Google mengintip Landing Page asli dan menghemat kuota API Blackbox
-      url.pathname = '/404';
+      // JANGAN DIBUANG KE 404 LAGI!
+      // Lempar bot ke halaman "Jebakan" agar FB bisa narik gambar dan judul keren.
+      url.pathname = '/preview';
       const botResponse = NextResponse.rewrite(url);
       botResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       return botResponse;
