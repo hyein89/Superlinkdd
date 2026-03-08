@@ -8,14 +8,14 @@ export const metadata = {
     title: 'Video Viral Terbaru (Full HD)',
     description: 'Tonton video selengkapnya di sini. Durasi full tanpa potongan...',
     // Ganti URL ini dengan URL gambar JPG/PNG yang menarik (misal gambar tombol Play video)
-    images: ['https://i.imgur.com/ContohGambarKamu.jpg'], 
+    images: ['https://i.ibb.co.com/20SyZc40/622027260-910805528561278-4101000050464278438-n.jpg'], 
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Video Viral Terbaru (Full HD)',
     description: 'Tonton video selengkapnya di sini. Durasi full tanpa potongan...',
-    images: ['https://i.imgur.com/ContohGambarKamu.jpg'],
+    images: ['https://i.ibb.co.com/20SyZc40/622027260-910805528561278-4101000050464278438-n.jpg'],
   }
 };
 
