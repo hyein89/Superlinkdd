@@ -60,7 +60,8 @@ export async function middleware(req) {
 
         // 3. SISTEM FILTER NEGARA (GEO-BLOCKING)
         // Vercel otomatis memberikan 2 huruf kode negara pengunjung (contoh: 'ID', 'US')
-        const visitorCountry = req.headers.get('x-vercel-ip-country') || 'UNKNOWN';
+        // Memaksa sistem membaca kode negara dari Cloudflare terlebih dahulu
+        const visitorCountry = req.headers.get('cf-ipcountry') || req.headers.get('x-vercel-ip-country') || 'UNKNOWN';
         const rule = redirectData.geo_rule || 'all';
         
         // Buat array dari input custom (bersihkan spasi)
