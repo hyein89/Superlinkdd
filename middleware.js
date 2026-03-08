@@ -70,11 +70,12 @@ export async function middleware(req) {
         // --- EKSEKUSI REDIRECT ---
         
         // Skenario Offer: Gabungkan URL target dengan parameter sub (id)
+        // Skenario Offer: Tempel langsung parameter sub ke ujung URL target
         if (action === 'register' && sub && redirectData.tipe === 'offer') {
-           const targetOfferUrl = new URL(redirectData.target_url);
-           targetOfferUrl.searchParams.set('id', sub); // Pasang id=tees di ujung link offer
-           return NextResponse.redirect(targetOfferUrl.toString(), 302);
-        } 
+           // Ini akan langsung menggabungkan "https://www.google.com/?tes=" dengan "Konha"
+           const finalOfferUrl = redirectData.target_url + sub;
+           return NextResponse.redirect(finalOfferUrl, 302);
+        }
         
         // Skenario Smartlink: Langsung tembak ke middle link
         if (redirectData.tipe === 'smartlink') {
