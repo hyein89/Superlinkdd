@@ -6,6 +6,14 @@ const TIER_1 = ['US', 'GB', 'CA', 'AU', 'NZ', 'IE'];
 const TIER_2 = ['DE', 'FR', 'IT', 'ES', 'JP', 'SG', 'KR', 'NL', 'SE', 'CH', 'NO', 'DK', 'FI'];
 const TIER_3 = ['IN', 'ID', 'BR', 'NG', 'PH', 'MX', 'ZA', 'VN', 'TH', 'MY', 'AR', 'CO'];
 
+// DAFTAR HITAM BOT & SPY TOOL (Bisa ditambah sesuai kebutuhan)
+const BOT_AGENTS = [
+  'bot', 'crawler', 'spider', 'facebookexternalhit', 'whatsapp', 
+  'telegrambot', 'twitterbot', 'googlebot', 'bingbot', 'slurp', 
+  'duckduckbot', 'yandexbot', 'adplexity', 'ahrefsbot', 'semrushbot',
+  'mj12bot', 'megaindex', 'dataprovider', 'builtwith', 'spyonweb', 'headless'
+];
+
 export async function middleware(req) {
   const url = req.nextUrl.clone();
   const hostname = req.headers.get('host') || '';
@@ -20,13 +28,30 @@ export async function middleware(req) {
     const action = url.searchParams.get('action');
     const sub = url.searchParams.get('sub'); 
 
-    // 1. DETEKSI VPN/PROXY DENGAN BLACKBOX (Tetap ada)
+    // ==========================================
+    // 0. SISTEM ANTI-BOT & ANTI-SPY TOOL
+    // ==========================================
+    const userAgent = req.headers.get('user-agent')?.toLowerCase() || '';
+    const isBot = BOT_AGENTS.some(keyword => userAgent.includes(keyword));
+
+    if (isBot) {
+      // Jika terdeteksi sebagai Bot/SpyTool, langsung tendang ke 404 secara diam-diam
+      // Ini mencegah FB/Google mengintip Landing Page asli dan menghemat kuota API Blackbox
+      url.pathname = '/404';
+      const botResponse = NextResponse.rewrite(url);
+      botResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      return botResponse;
+    }
+
+    // ==========================================
+    // 1. DETEKSI VPN/PROXY DENGAN BLACKBOX
+    // ==========================================
     const clientIp = req.headers.get('cf-connecting-ip') || req.headers.get('x-real-ip') || req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.ip;
 
     if (clientIp) {
       try {
         const ipCheck = await fetch(`https://blackbox.ipinfo.app/lookup/${clientIp}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store'
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }, cache: 'no-store'
         });
         const isVpn = await ipCheck.text();
         if (isVpn.trim() === 'Y') {
@@ -37,8 +62,10 @@ export async function middleware(req) {
       } catch (e) { console.error("Gagal cek Blackbox:", e); }
     }
 
+    // ==========================================
+    // 2. AMBIL DATA DARI SUPABASE & FILTER NEGARA
+    // ==========================================
     try {
-      // 2. AMBIL DATA DARI SUPABASE
       let queryUrl = `${supabaseUrl}/rest/v1/redirects?select=*&subdomain=eq.${subdomain}`;
       if (action === 'register' && sub) {
         queryUrl += `&tipe=eq.offer`;
@@ -58,43 +85,24 @@ export async function middleware(req) {
       if (data && data.length > 0) {
         const redirectData = data[0];
 
-        // 3. SISTEM FILTER NEGARA (GEO-BLOCKING)
-        // Vercel otomatis memberikan 2 huruf kode negara pengunjung (contoh: 'ID', 'US')
         // Memaksa sistem membaca kode negara dari Cloudflare terlebih dahulu
         const visitorCountry = req.headers.get('cf-ipcountry') || req.headers.get('x-vercel-ip-country') || 'UNKNOWN';
         const rule = redirectData.geo_rule || 'all';
-        
-        // Buat array dari input custom (bersihkan spasi)
-        const customCountries = redirectData.geo_custom 
-          ? redirectData.geo_custom.split(',').map(c => c.trim().toUpperCase()) 
-          : [];
+        const customCountries = redirectData.geo_custom ? redirectData.geo_custom.split(',').map(c => c.trim().toUpperCase()) : [];
 
         let isAllowed = true;
 
         if (visitorCountry !== 'UNKNOWN') {
           switch (rule) {
-            case 'tier1':
-              isAllowed = TIER_1.includes(visitorCountry);
-              break;
-            case 'tier2':
-              isAllowed = TIER_2.includes(visitorCountry);
-              break;
-            case 'tier3':
-              isAllowed = TIER_3.includes(visitorCountry);
-              break;
-            case 'custom_allow':
-              isAllowed = customCountries.includes(visitorCountry);
-              break;
-            case 'custom_block':
-              isAllowed = !customCountries.includes(visitorCountry);
-              break;
-            case 'all':
-            default:
-              isAllowed = true;
+            case 'tier1': isAllowed = TIER_1.includes(visitorCountry); break;
+            case 'tier2': isAllowed = TIER_2.includes(visitorCountry); break;
+            case 'tier3': isAllowed = TIER_3.includes(visitorCountry); break;
+            case 'custom_allow': isAllowed = customCountries.includes(visitorCountry); break;
+            case 'custom_block': isAllowed = !customCountries.includes(visitorCountry); break;
+            case 'all': default: isAllowed = true;
           }
         }
 
-        // Jika negara tidak diizinkan, tendang secara diam-diam ke 404
         if (!isAllowed) {
           url.pathname = '/404';
           const blockResponse = NextResponse.rewrite(url);
@@ -102,7 +110,7 @@ export async function middleware(req) {
           return blockResponse;
         }
 
-        // 4. JIKA LOLOS, TAMBAH HIT COUNT & REDIRECT
+        // --- JIKA LOLOS SEMUA FILTER: TAMBAH HIT COUNT & REDIRECT ---
         fetch(`${supabaseUrl}/rest/v1/redirects?id=eq.${redirectData.id}`, {
           method: 'PATCH',
           headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
