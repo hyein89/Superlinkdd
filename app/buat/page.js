@@ -163,10 +163,15 @@ export default function BuatLink() {
               style={{ fontSize: '1.1rem', padding: '8px 0', border: 'none', borderBottom: '1px solid #eee', outline: 'none', background: 'transparent', color: '#111', cursor: 'pointer' }}
             >
               <option value="all">Bebas (Semua Negara)</option>
-              <option value="tier1">Hanya Tier 1 (US, GB, CA, AU, NZ)</option>
-              <option value="tier2">Hanya Tier 2 (DE, FR, IT, ES, dll)</option>
-              <option value="tier3">Hanya Tier 3 (ID, IN, BR, PH, dll)</option>
-              <option value="custom_allow">Hanya Izinkan Negara Tertentu (Manual)</option>
+              <option value="tier1">Hanya Tier 1</option>
+              <option value="tier2">Hanya Tier 2</option>
+              <option value="tier3">Hanya Tier 3</option>
+              {/* Ini Opsi Kombinasi Barunya: */}
+              <option value="tier1_tier2">Tier 1 & Tier 2</option>
+              <option value="tier1_tier3">Tier 1 & Tier 3</option>
+              <option value="tier2_tier3">Tier 2 & Tier 3</option>
+              {/* ------------------------- */}
+              <option value="custom_allow">Izinkan Negara Tertentu (Manual)</option>
               <option value="custom_block">Blokir Negara Tertentu (Manual)</option>
             </select>
           </div>
