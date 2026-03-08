@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { siteConfig } from './config';
 
-// Daftar Negara Berdasarkan Tier
-const TIER_1 = ['US', 'GB', 'CA', 'AU', 'NZ', 'IE'];
-const TIER_2 = ['DE', 'FR', 'IT', 'ES', 'JP', 'SG', 'KR', 'NL', 'SE', 'CH', 'NO', 'DK', 'FI'];
-const TIER_3 = ['IN', 'ID', 'BR', 'NG', 'PH', 'MX', 'ZA', 'VN', 'TH', 'MY', 'AR', 'CO'];
+// DAFTAR NEGARA SUPER LENGKAP
+// Tier 1 (Premium / Bayaran Tertinggi)
+const TIER_1 = ['US', 'GB', 'CA', 'AU', 'NZ', 'IE', 'NO', 'SE', 'DK', 'FI', 'CH', 'NL', 'DE'];
+// Tier 2 (Menengah / Kompetisi Sedang)
+const TIER_2 = ['FR', 'IT', 'ES', 'JP', 'SG', 'KR', 'AE', 'QA', 'IL', 'PL', 'CZ', 'PT', 'GR', 'ZA', 'AT', 'BE', 'HK', 'TW', 'SA', 'MY', 'CL', 'UY', 'HR', 'HU', 'SK'];
+// Tier 3 (Volume Besar / Bayaran Receh)
+const TIER_3 = ['ID', 'IN', 'BR', 'PH', 'NG', 'VN', 'TH', 'MX', 'AR', 'CO', 'EG', 'PK', 'BD', 'TR', 'PE', 'VE', 'DZ', 'MA', 'KE', 'LK', 'KH', 'MM', 'NP', 'BO', 'PY', 'EC'];
 
-// DAFTAR HITAM BOT & SPY TOOL (Bisa ditambah sesuai kebutuhan)
+// DAFTAR HITAM BOT & SPY TOOL
 const BOT_AGENTS = [
   'bot', 'crawler', 'spider', 'facebookexternalhit', 'whatsapp', 
   'telegrambot', 'twitterbot', 'googlebot', 'bingbot', 'slurp', 
@@ -35,8 +38,6 @@ export async function middleware(req) {
     const isBot = BOT_AGENTS.some(keyword => userAgent.includes(keyword));
 
     if (isBot) {
-      // Jika terdeteksi sebagai Bot/SpyTool, langsung tendang ke 404 secara diam-diam
-      // Ini mencegah FB/Google mengintip Landing Page asli dan menghemat kuota API Blackbox
       url.pathname = '/404';
       const botResponse = NextResponse.rewrite(url);
       botResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -85,7 +86,6 @@ export async function middleware(req) {
       if (data && data.length > 0) {
         const redirectData = data[0];
 
-        // Memaksa sistem membaca kode negara dari Cloudflare terlebih dahulu
         const visitorCountry = req.headers.get('cf-ipcountry') || req.headers.get('x-vercel-ip-country') || 'UNKNOWN';
         const rule = redirectData.geo_rule || 'all';
         const customCountries = redirectData.geo_custom ? redirectData.geo_custom.split(',').map(c => c.trim().toUpperCase()) : [];
@@ -93,13 +93,24 @@ export async function middleware(req) {
         let isAllowed = true;
 
         if (visitorCountry !== 'UNKNOWN') {
-          switch (rule) {
-            case 'tier1': isAllowed = TIER_1.includes(visitorCountry); break;
-            case 'tier2': isAllowed = TIER_2.includes(visitorCountry); break;
-            case 'tier3': isAllowed = TIER_3.includes(visitorCountry); break;
-            case 'custom_allow': isAllowed = customCountries.includes(visitorCountry); break;
-            case 'custom_block': isAllowed = !customCountries.includes(visitorCountry); break;
-            case 'all': default: isAllowed = true;
+          if (rule === 'all') {
+            isAllowed = true;
+          } else if (rule === 'custom_allow') {
+            isAllowed = customCountries.includes(visitorCountry);
+          } else if (rule === 'custom_block') {
+            isAllowed = !customCountries.includes(visitorCountry);
+          } else {
+            // Logika baru: Menggabungkan array Tier sesuai aturan yang dipilih
+            let allowedTiers = [];
+            if (rule.includes('tier1')) allowedTiers = [...allowedTiers, ...TIER_1];
+            if (rule.includes('tier2')) allowedTiers = [...allowedTiers, ...TIER_2];
+            if (rule.includes('tier3')) allowedTiers = [...allowedTiers, ...TIER_3];
+
+            if (allowedTiers.length > 0) {
+              isAllowed = allowedTiers.includes(visitorCountry);
+            } else {
+              isAllowed = true; // Jaga-jaga jika rule kosong
+            }
           }
         }
 
