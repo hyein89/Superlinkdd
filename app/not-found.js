@@ -1,6 +1,20 @@
-// Metadata MURNI hanya title, tanpa deskripsi agar bot FB tidak bisa membaca apapun
+
 export const metadata = {
   title: '500 Internal Server Error',
+  description: 'The server encountered an unexpected condition.',
+  openGraph: {
+    title: '500 Internal Server Error',
+    description: 'The server encountered an unexpected condition.',
+    // Mengosongkan gambar secara paksa agar FB tidak menarik gambar layout
+    images: [], 
+  },
+  twitter: {
+    card: 'summary',
+    title: '500 Internal Server Error',
+    description: 'The server encountered an unexpected condition.',
+    // Mengosongkan gambar secara paksa
+    images: [], 
+  }
 };
 
 export default function NotFound() {
