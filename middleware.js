@@ -25,6 +25,7 @@ export async function middleware(req) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // JIKA YANG DIAKSES ADALAH SUBDOMAIN (TAUTAN SMARTLINK/OFFER)
   if (hostname.includes(`.${mainDomain}`)) {
     const subdomain = hostname.replace(`.${mainDomain}`, '');
     const path = url.pathname; 
@@ -100,7 +101,6 @@ export async function middleware(req) {
           } else if (rule === 'custom_block') {
             isAllowed = !customCountries.includes(visitorCountry);
           } else {
-            // Logika baru: Menggabungkan array Tier sesuai aturan yang dipilih
             let allowedTiers = [];
             if (rule.includes('tier1')) allowedTiers = [...allowedTiers, ...TIER_1];
             if (rule.includes('tier2')) allowedTiers = [...allowedTiers, ...TIER_2];
@@ -109,7 +109,7 @@ export async function middleware(req) {
             if (allowedTiers.length > 0) {
               isAllowed = allowedTiers.includes(visitorCountry);
             } else {
-              isAllowed = true; // Jaga-jaga jika rule kosong
+              isAllowed = true; 
             }
           }
         }
@@ -146,6 +146,27 @@ export async function middleware(req) {
     } catch (error) {
       console.error("Middleware Error:", error);
       url.pathname = '/404'; return NextResponse.rewrite(url);
+    }
+  }
+
+  // ==========================================
+  // 3. PROTEKSI HALAMAN DASHBOARD (LOGIN WAJIB)
+  // ==========================================
+  // Jika yang diakses adalah domain utama (Bukan subdomain)
+  if (!hostname.includes(`.${mainDomain}`)) {
+    const path = url.pathname;
+    
+    // Jika mencoba membuka halaman /buat atau /list
+    if (path.startsWith('/buat') || path.startsWith('/list')) {
+      const authCookie = req.cookies.get('admin_auth');
+      
+      // Jika tidak punya tiket akses (belum login), tendang ke halaman login
+      if (authCookie?.value !== 'akses_diizinkan_100') {
+        url.pathname = '/login';
+        const loginRedirect = NextResponse.redirect(url);
+        loginRedirect.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return loginRedirect;
+      }
     }
   }
 
