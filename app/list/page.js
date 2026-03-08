@@ -9,6 +9,11 @@ export default function ListLinks() {
   const [hasMore, setHasMore] = useState(true);
   const [toast, setToast] = useState('');
 
+  // State untuk mode Edit
+  const [editingId, setEditingId] = useState(null);
+  const [editTargetUrl, setEditTargetUrl] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const ITEMS_PER_PAGE = 10;
   const mainDomain = siteConfig?.domainName || 'tes.eu.org';
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -86,6 +91,51 @@ export default function ListLinks() {
     }
   };
 
+  // Fungsi untuk memulai Edit
+  const handleEditClick = (item) => {
+    setEditingId(item.id);
+    setEditTargetUrl(item.target_url);
+  };
+
+  // Fungsi untuk membatalkan Edit
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditTargetUrl('');
+  };
+
+  // Fungsi untuk menyimpan perubahan URL ke Supabase
+  const handleSaveEdit = async (id) => {
+    if (!editTargetUrl.trim()) {
+      showToast('URL Tujuan tidak boleh kosong!');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`${supabaseUrl}/rest/v1/redirects?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { 
+          'apikey': supabaseKey, 
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ target_url: editTargetUrl })
+      });
+
+      if (response.ok) {
+        showToast('URL Tujuan berhasil diperbarui!');
+        setEditingId(null);
+        fetchLinks(page); // Memuat ulang data dari database
+      } else {
+        showToast('Gagal memperbarui tautan');
+      }
+    } catch (error) {
+      showToast('Terjadi kesalahan jaringan');
+    }
+    setIsUpdating(false);
+  };
+
   const formatDateIndo = (dateString) => {
     const date = new Date(dateString);
     const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -95,7 +145,6 @@ export default function ListLinks() {
   };
 
   return (
-    // Tambahan overflowX: 'hidden' dan boxSizing untuk mencegah layar bisa digeser ke kanan
     <main style={{ maxWidth: '800px', width: '100%', margin: '0 auto', padding: '3rem 2rem', fontFamily: 'sans-serif', color: '#111', boxSizing: 'border-box', overflowX: 'hidden' }}>
       
       {/* Notifikasi Toast Elegan */}
@@ -123,7 +172,7 @@ export default function ListLinks() {
         </a>
       </div>
 
-      {/* Area Daftar (Desain Bersih, Anti-Kepotong) */}
+      {/* Area Daftar */}
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {loading && links.length === 0 ? (
           <p style={{ color: '#888', textAlign: 'center', padding: '2rem' }}>Memuat data...</p>
@@ -150,7 +199,7 @@ export default function ListLinks() {
                 </span>
               </div>
 
-              {/* Baris 2: Link Utama (Otomatis turun baris jika kepanjangan) */}
+              {/* Baris 2: Link Utama */}
               <div style={{ fontSize: '1.15rem', fontWeight: '500', color: '#0066cc', wordBreak: 'break-all', lineHeight: '1.4' }}>
                 {item.tipe === 'smartlink' 
                   ? `${item.subdomain}.${mainDomain}/${item.path}` 
@@ -158,10 +207,31 @@ export default function ListLinks() {
                 }
               </div>
 
-              {/* Baris 3: Target Asli (Otomatis turun baris, anti kepotong) */}
-              <div style={{ fontSize: '0.85rem', color: '#666', wordBreak: 'break-all', lineHeight: '1.5' }}>
-                Target: {item.target_url}
-              </div>
+              {/* Baris 3: Target Asli atau Mode Edit */}
+              {editingId === item.id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#fafafa', padding: '12px', borderRadius: '8px', border: '1px solid #eee' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>Edit Target URL</label>
+                  <input 
+                    type="url" 
+                    value={editTargetUrl}
+                    onChange={(e) => setEditTargetUrl(e.target.value)}
+                    placeholder="https://..."
+                    style={{ width: '100%', padding: '10px 12px', fontSize: '1rem', border: '1px solid #ccc', borderRadius: '6px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    <button onClick={() => handleSaveEdit(item.id)} disabled={isUpdating} style={{ background: '#111', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '40px', cursor: isUpdating ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>
+                      {isUpdating ? 'Menyimpan...' : 'Simpan'}
+                    </button>
+                    <button onClick={handleCancelEdit} disabled={isUpdating} style={{ background: '#e0e0e0', color: '#333', border: 'none', padding: '8px 16px', borderRadius: '40px', cursor: isUpdating ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.85rem', color: '#666', wordBreak: 'break-all', lineHeight: '1.5' }}>
+                  Target: {item.target_url}
+                </div>
+              )}
 
               {/* Baris 4: Klik & Tombol Aksi */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap', gap: '1rem' }}>
@@ -175,14 +245,20 @@ export default function ListLinks() {
                   {item.hit_count} Klik
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => handleCopy(item)} style={{ background: '#f5f5f5', color: '#111', border: 'none', padding: '8px 16px', borderRadius: '40px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>
-                    Copy
-                  </button>
-                  <button onClick={() => handleDelete(item.id)} style={{ background: '#fff0f0', color: '#d32f2f', border: 'none', padding: '8px 16px', borderRadius: '40px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>
-                    Delete
-                  </button>
-                </div>
+                {/* Tombol Aksi (Hanya tampil jika tidak sedang mode edit) */}
+                {editingId !== item.id && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => handleEditClick(item)} style={{ background: '#f0f8ff', color: '#0066cc', border: 'none', padding: '8px 16px', borderRadius: '40px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>
+                      Edit
+                    </button>
+                    <button onClick={() => handleCopy(item)} style={{ background: '#f5f5f5', color: '#111', border: 'none', padding: '8px 16px', borderRadius: '40px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>
+                      Copy
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} style={{ background: '#fff0f0', color: '#d32f2f', border: 'none', padding: '8px 16px', borderRadius: '40px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
 
             </div>
