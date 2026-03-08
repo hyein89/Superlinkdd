@@ -17,32 +17,35 @@ export async function middleware(req) {
     const sub = url.searchParams.get('sub'); 
 
     // ==========================================
-    // SISTEM KEAMANAN: DETEKSI VPN & PROXY (UPDATE API)
+    // SISTEM KEAMANAN: DETEKSI VPN (BLACKBOX API)
     // ==========================================
+    // Tarik IP pengunjung dengan sangat ketat
     const clientIp = req.headers.get('cf-connecting-ip') || 
+                     req.headers.get('x-real-ip') ||
                      req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
                      req.ip;
 
     if (clientIp) {
       try {
-        // Menggunakan layanan ipwho.is yang mendukung HTTPS dan lebih ramah dengan server Vercel Edge
-        const ipCheck = await fetch(`https://ipwho.is/${clientIp}`, {
+        // Menggunakan Blackbox IPInfo (Sangat ringan, anti-blokir Vercel)
+        const ipCheck = await fetch(`https://blackbox.ipinfo.app/lookup/${clientIp}`, {
+          headers: { 
+            // Menyamar sebagai browser biasa agar API tidak memblokir Vercel
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' 
+          },
           cache: 'no-store'
         });
-        const ipData = await ipCheck.json();
+        
+        const isVpn = await ipCheck.text();
 
-        // ipwho.is memiliki objek 'security' yang mendeteksi vpn, proxy, dan jaringan tor
-        if (ipData.success && ipData.security) {
-          const isVpnOrProxy = ipData.security.vpn || ipData.security.proxy || ipData.security.tor;
-          
-          if (isVpnOrProxy) {
-            const vpnResponse = NextResponse.redirect(`https://${mainDomain}/vpn`, 307);
-            vpnResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-            return vpnResponse;
-          }
+        // Jika API membalas "Y" (Yes), berarti itu VPN / Proxy
+        if (isVpn.trim() === 'Y') {
+          const vpnResponse = NextResponse.redirect(`https://${mainDomain}/vpn`, 307);
+          vpnResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+          return vpnResponse;
         }
       } catch (e) {
-        console.error("Gagal cek IP dengan ipwho.is:", e);
+        console.error("Gagal cek Blackbox:", e);
       }
     }
     // ==========================================
