@@ -19,24 +19,24 @@ export async function middleware(req) {
     // ==========================================
     // SISTEM KEAMANAN: DETEKSI VPN & PROXY
     // ==========================================
-    // Ambil IP asli pengunjung (Vercel Edge menggunakan x-forwarded-for)
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.ip;
 
     if (clientIp) {
       try {
-        // Cek IP ke API gratis (fields=status,proxy,hosting)
-        // proxy = mendeteksi VPN/Proxy/Tor
-        // hosting = mendeteksi IP dari Datacenter (seperti bot/server)
-        const ipCheck = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,proxy,hosting`);
+        // Tambahan { cache: 'no-store' } agar hasil cek IP tidak diingat oleh Vercel
+        const ipCheck = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,proxy,hosting`, {
+          cache: 'no-store'
+        });
         const ipData = await ipCheck.json();
 
         if (ipData.status === 'success' && (ipData.proxy || ipData.hosting)) {
-          // Jika ketahuan pakai VPN/Proxy, langsung lempar ke halaman /vpn di domain utama
-          return NextResponse.redirect(`https://${mainDomain}/vpn`, 302);
+          // Jika ketahuan VPN, lempar ke halaman peringatan DENGAN anti-cache
+          const vpnResponse = NextResponse.redirect(`https://${mainDomain}/vpn`, 307);
+          vpnResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          return vpnResponse;
         }
       } catch (e) {
         console.error("Gagal cek IP VPN", e);
-        // Jika API error, biarkan lolos agar pengunjung asli tidak terblokir
       }
     }
     // ==========================================
@@ -54,11 +54,13 @@ export async function middleware(req) {
         return NextResponse.rewrite(url);
       }
 
+      // Tarik data dari Supabase tanpa cache
       const response = await fetch(queryUrl, {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`
-        }
+        },
+        cache: 'no-store'
       });
 
       const data = await response.json();
@@ -77,14 +79,23 @@ export async function middleware(req) {
           body: JSON.stringify({ hit_count: redirectData.hit_count + 1 })
         }).catch(err => console.error("Gagal update hit count"));
 
-        // Skenario Offer: Tempel langsung parameter sub ke ujung URL target
+        let targetResponse;
+
+        // Skenario Offer
         if (action === 'register' && sub && redirectData.tipe === 'offer') {
            const finalOfferUrl = redirectData.target_url + sub;
-           return NextResponse.redirect(finalOfferUrl, 302);
+           targetResponse = NextResponse.redirect(finalOfferUrl, 307);
         } 
-        
-        if (redirectData.tipe === 'smartlink') {
-           return NextResponse.redirect(redirectData.target_url, 301);
+        // Skenario Smartlink
+        else if (redirectData.tipe === 'smartlink') {
+           // Pakai 307 (Temporary Redirect) alih-alih 301 agar browser tidak menge-cache selamanya
+           targetResponse = NextResponse.redirect(redirectData.target_url, 307);
+        }
+
+        if (targetResponse) {
+          // Terapkan header anti-cache super ketat di sini
+          targetResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          return targetResponse;
         }
       }
 
